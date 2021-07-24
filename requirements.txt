@@ -1,0 +1,5 @@
+nibabel
+pydicom
+numpy
+pandas
+dicom2nifti
