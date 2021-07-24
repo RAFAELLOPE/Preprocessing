@@ -83,7 +83,7 @@ def main(args):
     assert output_file.endswith('.csv'), "Output file should have extension CSV"
     studies = glob.glob(os.path.join(input_directory, '*', '*'))
     df = extract_metadata(studies)
-    df.to_csv(output_file)
+    df.to_csv(output_file, index=False)
 
 if __name__ == "__main__":
     args = manage_arguments()
