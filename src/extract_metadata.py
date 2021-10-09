@@ -3,7 +3,6 @@ import glob
 import numpy as np
 import pandas as pd
 import pydicom
-from argparse import ArgumentParser
 from collections import OrderedDict
 
 def image_plane(IOP):
@@ -17,7 +16,7 @@ def image_plane(IOP):
     elif plane[2] == 1:
         return "Axial"
 
-def extract_metadata(studies: list):
+def extract_metadata(series: list) -> pd.DataFrame:
     metadata = OrderedDict({
                             'Study_Id':list(),
                             'Serie_Id': list(),
@@ -48,7 +47,7 @@ def extract_metadata(studies: list):
                             'Largest Image Pixel Value': list(),
                             'Number of Slices': list(),
                             })
-    for s in studies:
+    for s in series:
         if len(glob.glob(os.path.join(s, '*.dcm'))) > 0:
             img = glob.glob(os.path.join(s, '*.dcm'))[0]  #Take only the first image in the serie
             ds = pydicom.dcmread(img, stop_before_pixels=True)
@@ -80,36 +79,5 @@ def extract_metadata(studies: list):
             metadata['Smallest Image Pixel Value'].append(ds[0x0028,0x0106].value if (0x0028,0x0106) in ds else None)
             metadata['Largest Image Pixel Value'].append(ds[0x0028,0x0107].value if (0x0028,0x0107) in ds else None)
             metadata['Number of Slices'].append(ds[0x0054,0x0081].value if (0x0054,0x0081) in ds else None)
-            
-
     return pd.DataFrame(metadata)
-    
-def manage_arguments():
-    parser = ArgumentParser()
-    parser.add_argument('--input_directory', 
-                        help='Path where dicom files are stored',
-                        type=str,
-                        required=True,
-                        metavar='-i',
-                        default='')
 
-    parser.add_argument('--output_file', 
-                        help='Path where metadata CSV file is going to be stored',
-                        type=str,
-                        required=True,
-                        metavar='-o',
-                        default='')
-    return parser.parse_args()
-
-def main(args):
-    input_directory = args.input_directory
-    output_file = args.output_file
-    assert os.path.exists(input_directory), "Input directory does not exist"
-    assert output_file.endswith('.csv'), "Output file should have extension CSV"
-    studies = glob.glob(os.path.join(input_directory, '*', '*'))
-    df = extract_metadata(studies)
-    df.to_csv(output_file, index=False)
-
-if __name__ == "__main__":
-    args = manage_arguments()
-    main(args)
