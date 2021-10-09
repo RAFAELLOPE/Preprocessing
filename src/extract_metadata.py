@@ -4,6 +4,9 @@ import numpy as np
 import pandas as pd
 import pydicom
 from collections import OrderedDict
+from striprtf.striprtf import rtf_to_text
+import io
+from db.db_access import DatabaseAccess
 
 def image_plane(IOP):
     IOP_round = [round(x) for x in IOP]
@@ -16,9 +19,45 @@ def image_plane(IOP):
     elif plane[2] == 1:
         return "Axial"
 
-def extract_metadata(series: list) -> pd.DataFrame:
+def anonymize_rtf(rtf_in: str, filename:str) -> str:
+    text = rtf_to_text(rtf_in)
+    text_in = io.StringIO(text)
+    text_out = io.StringIO()
+    for line in text_in:
+        if ('Paciente' in line) or ('Solicitado por:' in line):
+            continue
+        else:
+            text_out.write(line)
+    text_out.seek(0)
+    anonymize_rtf = text_out.getvalue()
+    return anonymize_rtf
+
+def get_forms(accesion_nums: list, **db_params) -> pd.DataFrame:
+    df_result = pd.DataFrame()
+    db_access = DatabaseAccess(db_params)
+    L = len(accesion_nums)
+    N = 1000 if 1000 < L else L
+    for s in range(0, L, N):
+        acc_nums = accesion_nums[s: s + N]
+        if len(accesion_nums) > 1:
+            sql_query = f"SELECT * \
+                          FROM CITAS_INFORMES \
+                          WHERE IDCita IN {acc_nums}"
+        else:
+            sql_query = f"SELECT * \
+                          FROM CITAS_INFORMES \
+                          WHERE IDCita = {acc_nums}"
+        df_result = db_access.run_query(sql_query)
+        if df_result.empty():
+            print('NO ACCESSION NUMBERS RETURNED')
+        else:
+            df_result.rename(['Id_Date', 'Form'], axis=1, inplace=True)
+    return df_result
+
+def extract_dicom_metadata(series: list) -> pd.DataFrame:
     metadata = OrderedDict({
                             'Study_Id':list(),
+                            'Study_Instance_UID':list(),
                             'Serie_Id': list(),
                             'Accession_Number': list(),
                             'Series_Description': list(),
@@ -43,15 +82,13 @@ def extract_metadata(series: list) -> pd.DataFrame:
                             'Bits Stored': list(),
                             'High Bit': list(),
                             'Pixel Representation': list(),
-                            'Smallest Image Pixel Value': list(),
-                            'Largest Image Pixel Value': list(),
-                            'Number of Slices': list(),
                             })
     for s in series:
         if len(glob.glob(os.path.join(s, '*.dcm'))) > 0:
             img = glob.glob(os.path.join(s, '*.dcm'))[0]  #Take only the first image in the serie
             ds = pydicom.dcmread(img, stop_before_pixels=True)
             metadata['Study_Id'].append(ds[0x0020, 0x0010].value if (0x0020, 0x0010) in ds else None)
+            metadata['Study_Instance_UID'].append(ds[0x0020, 0x000D].value if (0x0020, 0x000D) in ds else None)
             metadata['Serie_Id'].append(ds[0x0020, 0x00E].value if (0x0020, 0x00E) in ds else None)
             metadata['Accession_Number'].append(ds[0x0008, 0x0050].value if (0x0008, 0x0050) in ds else None)
             metadata['Series_Description'].append(ds[0x0008, 0x103E].value if (0x0008, 0x103E) in ds else None)
@@ -76,8 +113,9 @@ def extract_metadata(series: list) -> pd.DataFrame:
             metadata['Bits Stored'].append(ds[0x0028,0x0101].value if (0x0028,0x0101) in ds else None)
             metadata['High Bit'].append(ds[0x0028,0x0102].value if (0x0028,0x0102) in ds else None)
             metadata['Pixel Representation'].append(ds[0x0028,0x0103].value if (0x0028,0x0103) in ds else None)
-            metadata['Smallest Image Pixel Value'].append(ds[0x0028,0x0106].value if (0x0028,0x0106) in ds else None)
-            metadata['Largest Image Pixel Value'].append(ds[0x0028,0x0107].value if (0x0028,0x0107) in ds else None)
-            metadata['Number of Slices'].append(ds[0x0054,0x0081].value if (0x0054,0x0081) in ds else None)
     return pd.DataFrame(metadata)
+
+def extract_metadata(series: list) -> pd.DataFrame:
+    df_meta = extract_dicom_metadata(series)
+    df_meta['Id_Date'] = df_meta['Accession_Number']
 

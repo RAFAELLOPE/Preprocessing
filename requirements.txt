@@ -3,3 +3,5 @@ pydicom
 numpy
 pandas
 dicom2nifti
+pymssql
+striprtf
