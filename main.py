@@ -1,12 +1,36 @@
 from argparse import ArgumentParser
 import os
 import glob
+import logging
+import pandas as pd
+import json
 from src.convert_to_nifti import convert2nifti
 from src.extract_metadata import extract_metadata
-import logging
+from src.extract_forms import extract_forms
+from db.db_access import DatabaseAccess
+
 
 FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messge)s")
 LOG_FILE = "logging/preprocessing.log"
+
+def create_directory_structure(df: pd.DataFrame) -> None:
+    nifti_paths = set(df['NiftiPath'])
+    report_paths = set(df['FormPath'])
+    
+    for npath in (nifti_paths):
+        npath = npath.split("/")[:-1]
+        try:
+            os.makedirs(npath)
+        except:
+            continue
+    
+    for rpath in (nifti_paths):
+        rpath = rpath.split("/")[:-1]
+        try:
+            os.makedirs(report_paths)
+        except:
+            continue
+
 
 def manage_arguments():
     parser = ArgumentParser()
@@ -33,17 +57,49 @@ def main(args):
     assert os.path.exists(output_directory)
     ouput_file = os.path.join(output_directory, 'metadata.csv')
     series = glob.glob(os.path.join(input_directory, '*','*'))
+    with ('config.json', 'r') as f:
+        config = json.dumps(f)
+
+    irix_access = DatabaseAccess(config['Database_params_Irix'])
+    forms_access = DatabaseAccess(config['Database_params_IrixInformes'])
     
-    # Extract and save metaddata
-    df = extract_metadata(series)
+    # Extract and save metadata
+    df = extract_metadata(series, irix_access)
+
+    # Generate nifti and report paths
+    df['NiftiPath'] = df.apply(lambda x: os.path.join(output_directory,
+                                                      str(x['PatientID']),
+                                                      str(x['StudyDate']),
+                                                      str(x['StudyInstanceUID']),
+                                                      str(x['SeriesInstanceUID']) + '.nii.gz')
+                              )
+
+    df['FormPath'] = df.apply(lambda x: os.path.join(output_directory,
+                                                      str(x['PatientID']),
+                                                      str(x['StudyDate']),
+                                                      str(x['Report']),
+                                                      str(x['DateID'] + '.txt'))
+                               )
+    # Output csv with metadata
     df.to_csv(ouput_file, index=False)
     
+    # Create directory structure
+    create_directory_structure(df)
+
+    # Extract reports
+    result_form_extraction = extract_forms(df, forms_access)
+    if(result_form_extraction):
+        print('Form extraction successfully done')
+    else:
+        print('Error while extracting forms. Check log.')
+
     # Convert images to nifti
-    result = convert2nifti(series, output_directory)
-    if(result):
+    result_nifit_conversion = convert2nifti(series, output_directory)
+    if(result_nifit_conversion):
         print('Nifti conversion successfully done')
     else:
         print('Error while converting to nifti. Check log.')
+
 
 if __name__ == "__main__":
     args = manage_arguments()
