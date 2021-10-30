@@ -18,16 +18,16 @@ def create_directory_structure(df: pd.DataFrame) -> None:
     report_paths = set(df['FormPath'])
     
     for npath in (nifti_paths):
-        npath = npath.split("/")[:-1]
+        npath ='/'.join(npath.split("/")[:-1])
         try:
             os.makedirs(npath)
         except:
             continue
     
-    for rpath in (nifti_paths):
-        rpath = rpath.split("/")[:-1]
+    for rpath in (report_paths):
+        rpath = rpath ='/'.join(rpath.split("/")[:-1])
         try:
-            os.makedirs(report_paths)
+            os.makedirs(rpath)
         except:
             continue
 
@@ -37,14 +37,14 @@ def manage_arguments():
     parser.add_argument('--input_directory',
                         help='Path where dicom files are stored',
                         type=str,
-                        required=True,
+                        required=False,
                         metavar='-i',
                         default='')
     
     parser.add_argument('--output_directory',
                         help='Path where metadata and nifti images are going to be stored',
                         type=str,
-                        required=True,
+                        required=False,
                         metavar='-o',
                         default='')
     
@@ -53,15 +53,18 @@ def manage_arguments():
 def main(args):
     input_directory = args.input_directory
     output_directory = args.output_directory
+    #For testing purposes
+    input_directory = '/mnt/d/Tesis/dcm_data_N20_2014/dcm_data_N20_2014'
+    output_directory = '/mnt/d/Tesis/neuro_db'
     assert os.path.exists(input_directory)
     assert os.path.exists(output_directory)
     ouput_file = os.path.join(output_directory, 'metadata.csv')
     series = glob.glob(os.path.join(input_directory, '*','*'))
-    with ('config.json', 'r') as f:
-        config = json.dumps(f)
+    with open('config.json', 'r') as f:
+        config = json.load(f)
 
-    irix_access = DatabaseAccess(config['Database_params_Irix'])
-    forms_access = DatabaseAccess(config['Database_params_IrixInformes'])
+    irix_access = DatabaseAccess(**config['Database_params_Irix'])
+    forms_access = DatabaseAccess(**config['Database_params_IrixInformes'])
     
     # Extract and save metadata
     df = extract_metadata(series, irix_access)
@@ -69,19 +72,21 @@ def main(args):
     # Generate nifti and report paths
     df['NiftiPath'] = df.apply(lambda x: os.path.join(output_directory,
                                                       str(x['PatientID']),
-                                                      str(x['StudyDate']),
+                                                      str(x['StudyDate'].date()),
                                                       str(x['StudyInstanceUID']),
-                                                      str(x['SeriesInstanceUID']) + '.nii.gz')
+                                                      str(x['SeriesInstanceUID']) + '.nii.gz'),
+                                axis=1              
                               )
 
     df['FormPath'] = df.apply(lambda x: os.path.join(output_directory,
-                                                      str(x['PatientID']),
-                                                      str(x['StudyDate']),
-                                                      str(x['Report']),
-                                                      str(x['DateID'] + '.txt'))
+                                                     str(x['PatientID']),
+                                                     str(x['StudyDate'].date()),
+                                                     'Report',
+                                                     str(x['DateID']) + '.txt'),
+                                axis=1
                                )
     # Output csv with metadata
-    df.to_csv(ouput_file, index=False)
+    #df.to_csv(ouput_file, index=False)  ## Commented for testing purposes
     
     # Create directory structure
     create_directory_structure(df)

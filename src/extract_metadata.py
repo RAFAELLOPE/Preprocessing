@@ -11,7 +11,7 @@ import datetime
 from db.db_access import DatabaseAccess
 
 class RegexAccNum(Enum):
-    NORMAL = "1.(\d+).(\d).1"
+    NORMAL = "1.(\d+).(\d{1}).(\d{1})"
 
 def get_id_date_ext(acc_num:str, db_access: DatabaseAccess) -> Union[int, None]:
     id_date = None
@@ -26,8 +26,8 @@ def get_id_date_ext(acc_num:str, db_access: DatabaseAccess) -> Union[int, None]:
 def get_id_date(acc_num:str, db_access:DatabaseAccess) -> Union[int, None]:
     id_date = None
     try:
-        if re.match(RegexAccNum.NORMAL, acc_num):
-            id_date = int(re.match(RegexAccNum.NORMAL, acc_num).group(1))
+        if re.match(RegexAccNum.NORMAL.value, acc_num):
+            id_date = int(re.match(RegexAccNum.NORMAL.value, acc_num).group(1))
         else:
             id_date = get_id_date_ext(acc_num, db_access)
     except Exception as err:
@@ -84,11 +84,11 @@ def extract_dicom_metadata(series: list) -> pd.DataFrame:
             metadata['SeriesInstanceUID'].append(ds[0x0020, 0x00E].value if (0x0020, 0x00E) in ds else None)
             metadata['AccessionNumber'].append(ds[0x0008, 0x0050].value if (0x0008, 0x0050) in ds else None)
             metadata['SeriesDescription'].append(ds[0x0008, 0x103E].value if (0x0008, 0x103E) in ds else None)
-            metadata['InversionTime)'].append(ds[0x0018,0x0082].value if (0x0018,0x0082) in ds else None)
+            metadata['InversionTime'].append(ds[0x0018,0x0082].value if (0x0018,0x0082) in ds else None)
             metadata['RepetitionTime'].append(ds[0x0018,0x0080].value if (0x0018,0x0080) in ds else None)
             metadata['EchoTime'].append(ds[0x0018,0x0081].value if (0x0018,0x0081) in ds else None)
             metadata['ImagePlane'].append(image_plane(ds[0x0020,0x0037].value) if (0x0020,0x0037) in ds else None)
-            metadata['StudyDate'].append(datetime.datetime.date(ds[0x0008,0x0020].value) 
+            metadata['StudyDate'].append(datetime.datetime.strptime(ds[0x0008,0x0020].value, '%Y%m%d') 
                                          if (0x0008,0x0020) in ds else None)
             metadata['MRAdquisitionType'].append(ds[0x0018,0x0023].value if (0x0018,0x0023) in ds else None)
             metadata['PatientSex'].append(ds[0x0010,0x0040].value if (0x0010,0x0040) in ds else None)

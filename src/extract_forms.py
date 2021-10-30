@@ -21,27 +21,26 @@ def get_forms(date_id: list, db_access: DatabaseAccess) -> pd.DataFrame:
     L = len(date_id)
     N = 1000 if 1000 < L else L
     for s in range(0, L, N):
-        d = date_id[s: s + N]
+        d = tuple(date_id[s: s + N])
         if len(date_id) > 1:
-            sql_query = f"SELECT IDCita AS Id_Date, \
-                                 InformeRTF AS rtf_form \
+            sql_query = f"SELECT IDCita AS DateID, \
+                                 InformeRTF AS Form \
                           FROM CITAS_INFORMES \
                           WHERE IDCita IN {d} AND Numero = 1"
         else:
-            sql_query = f"SELECT IDCita AS Id_Date, \
-                                 InformeRTF AS rtf_form \
+            sql_query = f"SELECT IDCita AS DateID, \
+                                 InformeRTF AS Form \
                           FROM CITAS_INFORMES \
                           WHERE IDCita = {d} AND Numero = 1"
         df_tmp = db_access.run_query(sql_query)
-        if df_tmp.empty():
+        if df_tmp.empty:
             print('NO ACCESSION NUMBERS RETURNED')
         else:
-            df_tmp.rename(['DateID', 'Form'], axis=1, inplace=True)
-            df_result = pd.concat(df_result, df_tmp, ignore_index=True)
+            df_result = pd.concat([df_result, df_tmp], ignore_index=True)
 
     df_result.drop_duplicates(inplace=True)
     df_result['Form']  = df_result['Form'].apply(lambda x: anonymize_rtf(x))
-    return df_result.drop_duplicates(inplace=True)
+    return df_result
 
 def extract_forms(df: pd.DataFrame, db_access: DatabaseAccess) -> bool:
     result = True

@@ -3,10 +3,10 @@ import pymssql
 
 class DatabaseAccess:
     def __init__(self, **params):
-        self.ip = params.server
-        self.db = params.db
-        self.user = params.user
-        self.pwd = params.pwd
+        self.ip = params["server"]
+        self.db = params["db"]
+        self.user = params["usr"]
+        self.pwd = params["pwd"]
 
     def run_query(self, query: str, verbose: bool = False)-> pd.DataFrame:
         df_result = pd.DataFrame()
