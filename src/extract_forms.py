@@ -1,3 +1,4 @@
+import logging
 from striprtf.striprtf import rtf_to_text
 import io
 from db.db_access import DatabaseAccess
@@ -35,7 +36,7 @@ def get_forms(date_id: list, db_access: DatabaseAccess) -> pd.DataFrame:
                           WHERE IDCita = {d} AND Numero = 1"
         df_tmp = db_access.run_query(sql_query)
         if df_tmp.empty:
-            print('NO ACCESSION NUMBERS RETURNED')
+            logging.error('NO FORMS RETURNED FROM QUERY')
         else:
             df_result = pd.concat([df_result, df_tmp], ignore_index=True)
 

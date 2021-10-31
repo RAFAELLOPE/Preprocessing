@@ -10,7 +10,7 @@ from src.extract_forms import extract_forms
 from db.db_access import DatabaseAccess
 
 
-FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messge)s")
+LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_FILE = "logging/preprocessing.log"
 
 def create_directory_structure(df: pd.DataFrame) -> None:
@@ -51,6 +51,10 @@ def manage_arguments():
     return parser.parse_args()
 
 def main(args):
+    logging.basicConfig(level=logging.DEBUG, 
+                        filename=LOG_FILE, 
+                        filemode='a',
+                        format=LOG_FORMAT)
     input_directory = args.input_directory
     output_directory = args.output_directory
     assert os.path.exists(input_directory)
@@ -91,17 +95,17 @@ def main(args):
     # Extract reports
     result_form_extraction = extract_forms(df, forms_access)
     if(result_form_extraction):
-        print('Form extraction successfully done')
+        logging.info('Form extraction successfully done')
     else:
-        print('Error while extracting forms. Check log.')
+        logging.error('Error while extracting forms. Check log.')
 
 
     # Convert images to nifti
     result_nifit_conversion = convert2nifti(df)
     if(result_nifit_conversion):
-        print('Nifti conversion successfully done')
+        logging.info('Nifti conversion successfully done')
     else:
-        print('Error while converting to nifti. Check log.')
+        logging.error('Error while converting to nifti. Check log.')
 
 
 if __name__ == "__main__":

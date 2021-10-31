@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Union
 import datetime
 from db.db_access import DatabaseAccess
+import logging
 
 class RegexAccNum(Enum):
     NORMAL = "1.(\d+).(\d{1}).(\d{1})"
@@ -20,7 +21,7 @@ def get_id_date_ext(acc_num:str, db_access: DatabaseAccess) -> Union[int, None]:
     try:
         id_date = int(df_result['IDCita'])
     except Exception as err:
-        print(err)
+        logging.error(err)
     return id_date
 
 def get_id_date(acc_num:str, db_access:DatabaseAccess) -> Union[int, None]:
@@ -31,7 +32,7 @@ def get_id_date(acc_num:str, db_access:DatabaseAccess) -> Union[int, None]:
         else:
             id_date = get_id_date_ext(acc_num, db_access)
     except Exception as err:
-        print(err)
+        logging.error(err)
     return id_date
 
 def image_plane(IOP) -> str:
