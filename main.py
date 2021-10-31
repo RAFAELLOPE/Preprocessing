@@ -37,14 +37,14 @@ def manage_arguments():
     parser.add_argument('--input_directory',
                         help='Path where dicom files are stored',
                         type=str,
-                        required=False,
+                        required=True,
                         metavar='-i',
                         default='')
     
     parser.add_argument('--output_directory',
                         help='Path where metadata and nifti images are going to be stored',
                         type=str,
-                        required=False,
+                        required=True,
                         metavar='-o',
                         default='')
     
@@ -53,13 +53,10 @@ def manage_arguments():
 def main(args):
     input_directory = args.input_directory
     output_directory = args.output_directory
-    #For testing purposes
-    input_directory = '/mnt/d/Tesis/dcm_data_N20_2014/dcm_data_N20_2014'
-    output_directory = '/mnt/d/Tesis/neuro_db'
     assert os.path.exists(input_directory)
     assert os.path.exists(output_directory)
     ouput_file = os.path.join(output_directory, 'metadata.csv')
-    series = glob.glob(os.path.join(input_directory, '*','*'))
+    original_series = glob.glob(os.path.join(input_directory, '*','*'))
     with open('config.json', 'r') as f:
         config = json.load(f)
 
@@ -67,7 +64,7 @@ def main(args):
     forms_access = DatabaseAccess(**config['Database_params_IrixInformes'])
     
     # Extract and save metadata
-    df = extract_metadata(series, irix_access)
+    df = extract_metadata(original_series, irix_access)
 
     # Generate nifti and report paths
     df['NiftiPath'] = df.apply(lambda x: os.path.join(output_directory,
@@ -86,8 +83,8 @@ def main(args):
                                 axis=1
                                )
     # Output csv with metadata
-    #df.to_csv(ouput_file, index=False)  ## Commented for testing purposes
-    
+    df.to_csv(ouput_file, index=False)
+
     # Create directory structure
     create_directory_structure(df)
 
@@ -98,8 +95,9 @@ def main(args):
     else:
         print('Error while extracting forms. Check log.')
 
+
     # Convert images to nifti
-    result_nifit_conversion = convert2nifti(series, output_directory)
+    result_nifit_conversion = convert2nifti(df)
     if(result_nifit_conversion):
         print('Nifti conversion successfully done')
     else:

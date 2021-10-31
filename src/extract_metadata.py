@@ -46,7 +46,9 @@ def image_plane(IOP) -> str:
         return "Axial"
 
 def extract_dicom_metadata(series: list) -> pd.DataFrame:
-    metadata = OrderedDict({'OriginalPatientId': list(),
+    metadata = OrderedDict({
+                            'OriginalSeriesDir': list(),
+                            'OriginalPatientId': list(),
                             'StudyId':list(),
                             'StudyInstanceUID':list(),
                             'SeriesInstanceUID': list(),
@@ -78,6 +80,7 @@ def extract_dicom_metadata(series: list) -> pd.DataFrame:
         if len(glob.glob(os.path.join(s, '*.dcm'))) > 0:
             img = glob.glob(os.path.join(s, '*.dcm'))[0]  #Take only the first image in the serie
             ds = pydicom.dcmread(img, stop_before_pixels=True)
+            metadata['OriginalSeriesDir'].append(s)
             metadata['OriginalPatientId'].append(ds[0x0010, 0x0020].value if (0x0020, 0x0010) in ds else None)
             metadata['StudyId'].append(ds[0x0020, 0x0010].value if (0x0020, 0x0010) in ds else None)
             metadata['StudyInstanceUID'].append(ds[0x0020, 0x000D].value if (0x0020, 0x000D) in ds else None)

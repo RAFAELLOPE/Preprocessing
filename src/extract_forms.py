@@ -2,6 +2,7 @@ from striprtf.striprtf import rtf_to_text
 import io
 from db.db_access import DatabaseAccess
 import pandas as pd
+import os
 
 def anonymize_rtf(rtf_in: str) -> str:
     text = rtf_to_text(rtf_in)
@@ -46,13 +47,16 @@ def extract_forms(df: pd.DataFrame, db_access: DatabaseAccess) -> bool:
     result = True
     df_forms = get_forms(list(set(df['DateID'])), db_access)
     for d in set(df['DateID']):
-        path = df[df['DateID'] == d]['FormPath']
-        form = df_forms[df_forms['DateID'] == d]['Form']
-        with open(path, 'w') as f:
-            try:
-                f.write(form)
-            except:
-                result = result and False
+        path = df[df['DateID'] == d].iloc[0]['FormPath']
+        form = df_forms[df_forms['DateID'] == d].iloc[0]['Form']
+        if os.path.exists(path):
+            continue
+        else:
+            with open(path, 'w') as f:
+                try:
+                    f.write(form)
+                except:
+                    result = result and False
     return result
 
 
