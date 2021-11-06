@@ -6,16 +6,20 @@ import pandas as pd
 import os
 
 def anonymize_rtf(rtf_in: str) -> str:
-    text = rtf_to_text(rtf_in)
-    text_in = io.StringIO(text)
-    text_out = io.StringIO()
-    for line in text_in:
-        if ('Paciente' in line) or ('Solicitado por:' in line):
-            continue
-        else:
-            text_out.write(line)
-    text_out.seek(0)
-    out_form = text_out.getvalue()
+    out_form: str = ""
+    try:
+        text = rtf_to_text(str(rtf_in))
+        text_in = io.StringIO(text)
+        text_out = io.StringIO()
+        for line in text_in:
+            if ('Paciente' in line) or ('Solicitado por:' in line):
+                continue
+            else:
+                text_out.write(line)
+        text_out.seek(0)
+        out_form = text_out.getvalue()
+    except:
+        logging.error('FAIL TO CONVERT RTF IN TO TEXT')
     return out_form
 
 def get_forms(date_id: list, db_access: DatabaseAccess) -> pd.DataFrame:
@@ -47,17 +51,19 @@ def get_forms(date_id: list, db_access: DatabaseAccess) -> pd.DataFrame:
 def extract_forms(df: pd.DataFrame, db_access: DatabaseAccess) -> bool:
     result = True
     df_forms = get_forms(list(set(df['DateID'])), db_access)
-    for d in set(df['DateID']):
+    for d in set(df_forms['DateID']):
         path = df[df['DateID'] == d].iloc[0]['FormPath']
         form = df_forms[df_forms['DateID'] == d].iloc[0]['Form']
         if os.path.exists(path):
             continue
         else:
-            with open(path, 'w') as f:
-                try:
+            try:
+                with open(path, 'w',  encoding="utf-8", errors='ignore') as f:
                     f.write(form)
-                except:
-                    result = result and False
+            except Exception as e:
+                logging.error(f'ERROR WHILE EXTRACTING FORMS FOR DATEID: {d}')
+                result = result and False
+                continue
     return result
 
 

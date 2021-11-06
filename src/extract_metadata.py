@@ -16,7 +16,7 @@ class RegexAccNum(Enum):
 
 def get_id_date_ext(acc_num:str, db_access: DatabaseAccess) -> Union[int, None]:
     id_date = None
-    query = f"SELECT IDCita FROM CITAS_EXPLORACIONES WHERE AANN_Externo = {acc_num}"
+    query = f"SELECT TOP 1 IDCita FROM CITAS_EXPLORACIONES WHERE AANN_Externo = '{acc_num}'"
     df_result = db_access.run_query(query)
     try:
         id_date = int(df_result['IDCita'])
