@@ -14,15 +14,15 @@ LOG_FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 LOG_FILE = "logging/preprocessing.log"
 
 def create_directory_structure(df: pd.DataFrame) -> None:
-    #nifti_paths = set(df['NiftiPath'])
+    nifti_paths = set(df['NiftiPath'])
     report_paths = set(df['FormPath'])
     
-    #for npath in (nifti_paths):
-    #    npath ='/'.join(npath.split("/")[:-1])
-    #    try:
-    #        os.makedirs(npath)
-    #    except:
-    #        continue
+    for npath in (nifti_paths):
+        npath ='/'.join(npath.split("/")[:-1])
+        try:
+            os.makedirs(npath)
+        except:
+            continue
     
     for rpath in (report_paths):
         rpath = rpath ='/'.join(rpath.split("/")[:-1])
@@ -59,7 +59,7 @@ def main(args):
     output_directory = args.output_directory
     # For testing purposes
     input_directory='/mnt/d/Tesis/dcm_data'
-    output_directory='/mnt/d/Tesis/sample_forms'
+    output_directory='/mnt/d/Tesis/neuro_db'
 
     assert os.path.exists(input_directory)
     assert os.path.exists(output_directory)
