@@ -35,14 +35,14 @@ def manage_arguments():
     parser.add_argument('--input_directory',
                         help='Path where dicom files are stored',
                         type=str,
-                        required=False,
+                        required=True,
                         metavar='-i',
                         default='')
     
     parser.add_argument('--output_directory',
                         help='Path where metadata and nifti images are going to be stored',
                         type=str,
-                        required=False,
+                        required=True,
                         metavar='-o',
                         default='')
     
@@ -61,6 +61,7 @@ def main(args):
     assert os.path.exists(output_directory)
     ouput_file = os.path.join(output_directory, 'metadata.csv')
     original_series = glob.glob(os.path.join(input_directory, '*','*'))
+
     with open('config.json', 'r') as f:
         config = json.load(f)
 

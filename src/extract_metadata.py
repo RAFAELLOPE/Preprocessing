@@ -12,7 +12,7 @@ from db.db_access import DatabaseAccess
 import logging
 
 class RegexAccNum(Enum):
-    NORMAL = "1.(\d+).(\d{1}).(\d{1})"
+    NORMAL = "(\d{1})\.(\d+)\.(\d{1})\.(\d{1})"
 
 def get_id_date_ext(acc_num:str, db_access: DatabaseAccess) -> Union[int, None]:
     id_date = None
@@ -28,7 +28,7 @@ def get_id_date(acc_num:str, db_access:DatabaseAccess) -> Union[int, None]:
     id_date = None
     try:
         if re.match(RegexAccNum.NORMAL.value, acc_num):
-            id_date = int(re.match(RegexAccNum.NORMAL.value, acc_num).group(1))
+            id_date = int(re.match(RegexAccNum.NORMAL.value, acc_num).group(2))
         else:
             id_date = get_id_date_ext(acc_num, db_access)
     except Exception as err:
