@@ -1,5 +1,6 @@
 import pandas as pd
 import pymssql
+import logging
 
 class DatabaseAccess:
     def __init__(self, **params):
@@ -17,11 +18,10 @@ class DatabaseAccess:
                                    self.pwd,
                                    self.db)
             if (verbose):
-                print(query)
+                logging.ingo(f"Query executed {query}")
             df_result = pd.read_sql_query(query, conn)
         except Exception as err:
-            print('CONNECTION FAILED')
-            print(err)
+            logging.error(f'CONNECTION FAILED: {err}')
             conn = None
         finally:
             if conn != None:

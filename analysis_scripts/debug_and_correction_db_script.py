@@ -1,39 +1,52 @@
-import os
 import glob
+import os
+from collections import OrderedDict
 import numpy as np
 import pandas as pd
 import pydicom
-from collections import OrderedDict
-import re
-from enum import Enum
-from typing import Union
 import datetime
-from db.db_access import DatabaseAccess
-import logging
+import dicom2nifti
 
-class RegexAccNum(Enum):
-    NORMAL = "(\d{1})\.(\d+)\.(\d{1})\.(\d{1})"
 
-def get_id_date_ext(acc_num:str, db_access: DatabaseAccess) -> Union[int, None]:
-    id_date = None
-    query = f"SELECT TOP 1 IDCita FROM CITAS_EXPLORACIONES WHERE AANN_Externo = '{acc_num}'"
-    df_result = db_access.run_query(query)
-    try:
-        id_date = int(df_result['IDCita'])
-    except Exception as err:
-        logging.error(err)
-    return id_date
-
-def get_id_date(acc_num:str, db_access:DatabaseAccess) -> Union[int, None]:
-    id_date = None
-    try:
-        if re.match(RegexAccNum.NORMAL.value, acc_num):
-            id_date = int(re.match(RegexAccNum.NORMAL.value, acc_num).group(2))
+def convert2nifti(df: pd.DataFrame) -> bool:
+    success = True
+    for s_org, s_des in zip(df['OriginalSeriesDir'], df['NiftiPath']):
+        if os.path.exists(s_des):
+            continue
         else:
-            id_date = get_id_date_ext(acc_num, db_access)
-    except Exception as err:
-        logging.error(err)
-    return id_date
+            try: 
+                dicom2nifti.convert_dicom \
+                           .dicom_series_to_nifti(original_dicom_directory=s_org,
+                                                  output_file=s_des)
+            except Exception as e:
+                print(f'DICOM-TO-NIFIT ERROR IN SERIE {s_org}; ERROR {e}')
+                success = False
+                continue
+    return success
+
+def get_nifti_files_with_missing_metadata(neuro_db_path:str, df:pd.DataFrame) -> list:
+    nifti_processed = set(glob.glob(os.path.join(neuro_db_path, '*', '*', '*', '*.nii.gz')))
+    nifti_paths = set(df['NiftiPath'])
+    missing_nifti_paths = list(nifti_processed.difference(nifti_paths))
+    missing_metadata = list()
+    for p in missing_nifti_paths:
+        r_path = p.split('/')[:-2]
+        report_path = os.path.join('/'.join(r_path), 'Report', '*.txt')
+        dateId = glob.glob(report_path)[0].split('/')[-1].split('.')[0]
+        missing_metadata.append((p, dateId))
+    return missing_metadata
+
+    
+def get_empty_folders(neuro_db_path:str)->list:
+    neuro_db_paths = glob.glob(os.path.join(neuro_db_path, '*', '*', '*'))
+    empty_folders = list()
+    for path in neuro_db_paths:
+        if (len(os.listdir(path)) == 0) & (not 'Report' in path):
+            r_path = path.split('/')[0:-1]
+            report_path = os.path.join('/'.join(r_path), 'Report', '*.txt')
+            dateId = glob.glob(report_path)[0].split('/')[-1].split('.')[0]
+            empty_folders.append((path, dateId))
+    return empty_folders
 
 def image_plane(IOP) -> str:
     IOP_round = [round(x) for x in IOP]
@@ -112,13 +125,52 @@ def extract_dicom_metadata(series: list) -> pd.DataFrame:
             metadata['PixelRepresentation'].append(ds[0x0028,0x0103].value if (0x0028,0x0103) in ds else None)
     return pd.DataFrame(metadata)
 
-def extract_metadata(series: list, db_access:DatabaseAccess) -> pd.DataFrame:
-    transformedPatientIDs = OrderedDict()
+def extract_metadata(series: list, subject:str, dateId:str) -> pd.DataFrame:
     df_meta = extract_dicom_metadata(series)
-    
-    for i, p in enumerate(set(df_meta['OriginalPatientId'])):
-        transformedPatientIDs[p] = 'Sub-' + str(i)
-    
-    df_meta['PatientID'] = df_meta['OriginalPatientId'].apply(lambda x: transformedPatientIDs[x])
-    df_meta['DateID'] = df_meta['AccessionNumber'].apply(lambda x: get_id_date(x, db_access))
+    df_meta['PatientID'] = subject
+    df_meta['DateID'] = dateId
     return df_meta
+
+if __name__ == "__main__":
+    neuro_db_root_path = ''
+    dcm_db_root_path = ''
+    metadata_csv_path = ''
+    df_metadata = pd.DataFrame()
+
+    #empty_folders = get_empty_folders(neuro_db_path=neuro_db_root_path)
+    df = pd.read_csv(metadata_csv_path)
+    missing_metadata = get_nifti_files_with_missing_metadata(neuro_db_root_path, df)
+    missing_studies = [(i.split('/')[-2], i.split('/')[5], d) 
+                     for i, d in missing_metadata]
+    missing_studies_unique = list(set(missing_studies))
+
+    for study, subject, dateId in missing_studies_unique:
+        series = glob.glob(os.path.join(dcm_db_root_path, study, '*'))
+        df_tmp = extract_metadata(series, subject, dateId)
+        df_metadata = pd.concat([df_metadata, df_tmp])
+    
+    #df_metadata.drop_duplicates(inplace=True)
+    #df_metadata.reset_index(drop=True)
+    
+    df_metadata['NiftiPath'] = df_metadata.apply(lambda x: os.path.join(neuro_db_root_path,
+                                                 str(x['PatientID']),
+                                                 str(x['StudyDate'].date()),
+                                                 str(x['StudyInstanceUID']),
+                                                 str(x['SeriesInstanceUID']) + '.nii.gz'),
+                                                 axis=1              
+                                                )
+    df_metadata['FormPath'] = df_metadata.apply(lambda x: os.path.join(neuro_db_root_path,
+                                                str(x['PatientID']),
+                                                str(x['StudyDate'].date()),
+                                                'Report',
+                                                str(x['DateID']) + '.txt'),
+                                                axis=1
+                                                )
+    
+    #result_nifit_conversion = convert2nifti(df_metadata)
+    df = pd.concat([df, df_metadata])
+    #df.drop_duplicates(inplace=True)
+    #df.reset_index(drop=True)
+    df.to_csv(metadata_csv_path, index=False)
+
+
