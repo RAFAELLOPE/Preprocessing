@@ -55,8 +55,7 @@ def main(args):
                         format=LOG_FORMAT)
     input_directory = args.input_directory
     output_directory = args.output_directory
-    # For testing purposes
-
+    
     assert os.path.exists(input_directory)
     assert os.path.exists(output_directory)
     ouput_file = os.path.join(output_directory, 'metadata.csv')
