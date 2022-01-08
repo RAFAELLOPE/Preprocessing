@@ -1,4 +1,4 @@
-# Preprocessing
+# Extraction
 
 Running program:
 
